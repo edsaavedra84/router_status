@@ -5,6 +5,10 @@ import datetime
 import time
 import logging
 import sys
+from zoneinfo import ZoneInfo
+import pytz
+
+est_timezone = pytz.timezone("America/New_York")
 
 # Configuration from environment variables with defaults
 file_path = os.path.dirname(os.path.realpath(__file__))
@@ -14,6 +18,16 @@ log_dir = os.getenv('LOG_DIR', file_path)
 if not os.path.exists(log_dir) and log_dir != file_path:
     os.makedirs(log_dir, exist_ok=True)
 
+# Custom formatter to enforce EST timezone
+class ESTFormatter(logging.Formatter):
+    """Custom formatter that converts timestamps to EST/EDT (America/New_York)"""
+    def formatTime(self, record, datefmt=None):
+        dt = datetime.datetime.fromtimestamp(record.created, tz=ZoneInfo("America/New_York"))
+        if datefmt:
+            return dt.strftime(datefmt)
+        else:
+            return dt.strftime('%d-%b-%y %H:%M:%S')
+
 # 1. Create a logger instance
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # Set the overall logging level for the logger
@@ -21,14 +35,14 @@ logger.setLevel(logging.DEBUG)  # Set the overall logging level for the logger
 # 2. Create a StreamHandler for console output
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setLevel(logging.DEBUG)  # Set level for console output
-console_formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+console_formatter = ESTFormatter('%(asctime)s - %(levelname)s - %(message)s')
 console_handler.setFormatter(console_formatter)
 logger.addHandler(console_handler)
 
 # 3. Create a FileHandler for file output
 file_handler = logging.FileHandler(f'{log_dir}/networkinfo.log')
 file_handler.setLevel(logging.DEBUG)  # Set level for file output
-file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_formatter = ESTFormatter('%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 file_handler.setFormatter(file_formatter)
 logger.addHandler(file_handler)
 
@@ -105,7 +119,7 @@ def first_check():
         # if ping returns true
         live = "CONNECTION ACQUIRED"
         logger.info(live)
-        connection_acquired_time = datetime.datetime.now()
+        connection_acquired_time = datetime.datetime.now(est_timezone)
         acquiring_message = "connection acquired at: " + \
             str(connection_acquired_time).split(".")[0]
         logger.info(acquiring_message)
@@ -125,7 +139,7 @@ def first_check():
 
 def main():
     # main function to call functions
-    monitor_start_time = datetime.datetime.now()
+    monitor_start_time = datetime.datetime.now(est_timezone)
     monitoring_date_time = "monitoring started at: " + \
         str(monitor_start_time).split(".")[0]
 
@@ -167,7 +181,7 @@ def main():
 
         else:
             # if false: fail message will be displayed
-            down_time = datetime.datetime.now()
+            down_time = datetime.datetime.now(est_timezone)
             fail_msg = "disconnected at: " + str(down_time).split(".")[0]
             logger.info(fail_msg)
             continuos_failed_pings = 1 
@@ -198,7 +212,7 @@ def main():
                 continuos_failed_pings += 1
                 time.sleep(SLEEP_WHILE_OFFLINE)
                 
-            up_time = datetime.datetime.now()
+            up_time = datetime.datetime.now(est_timezone)
             
             # after loop breaks, connection restored
             uptime_message = "connected again: " + str(up_time).split(".")[0]
