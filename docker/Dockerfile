@@ -4,11 +4,17 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install dependencies
-RUN pip install --no-cache-dir requests
+# Install system dependencies (tzdata for timezone support)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends tzdata && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy the application
+COPY requirements.txt .
 COPY main.py .
+
+# Install Python dependencies
+RUN pip install -r requirements.txt
 
 # Create directory for logs
 RUN mkdir -p /app/logs
