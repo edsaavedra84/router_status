@@ -75,7 +75,13 @@ Docker provides an easier way to run this on your Raspberry Pi without worrying 
 
 ### 1. Quick Start with Docker Compose
 
-Edit `docker-compose.yml` to configure your Home Assistant details:
+Navigate to the docker directory and edit `docker-compose.yml` to configure your Home Assistant details:
+
+```bash
+cd docker
+```
+
+Edit the environment variables in `docker-compose.yml`:
 
 ```yaml
 environment:
@@ -91,21 +97,25 @@ Then run:
 docker-compose up -d
 ```
 
-Logs will be saved to `./logs/networkinfo.log` on your host machine.
+Logs will be saved to `../logs/networkinfo.log` (in the project root) on your host machine.
 
 ### 2. View Logs
+
+All commands should be run from the `docker/` directory:
 
 ```bash
 # View real-time logs
 docker-compose logs -f
 
 # View log file
-cat logs/networkinfo.log
+cat ../logs/networkinfo.log
 ```
 
 ### 3. Stop/Restart
 
 ```bash
+# From the docker/ directory:
+
 # Stop the container
 docker-compose down
 
@@ -118,7 +128,7 @@ docker-compose up -d --build
 
 ### 4. Alternative: Using .env File
 
-Copy the example environment file:
+From the `docker/` directory, copy the example environment file:
 
 ```bash
 cp .env.example .env
@@ -138,20 +148,38 @@ Update `docker-compose.yml` to use the .env file:
 ```yaml
 services:
   routerdown:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     env_file:
       - .env
     volumes:
-      - ./logs:/app/logs
+      - ../logs:/app/logs
     network_mode: "host"
     restart: unless-stopped
 ```
 
-### 5. Manual Docker Build (without docker-compose)
+### 5. Quick Start Script
+
+For the easiest setup, use the provided start script:
 
 ```bash
-# Build the image
-docker build -t routerdown .
+cd docker
+chmod +x start.sh
+./start.sh
+```
+
+The script will:
+- Check for Docker and docker-compose
+- Create `.env` from `.env.example` if needed
+- Prompt you to configure your settings
+- Build and start the container automatically
+
+### 6. Manual Docker Build (without docker-compose)
+
+```bash
+# Build the image (from project root)
+docker build -t routerdown -f docker/Dockerfile .
 
 # Run the container
 docker run -d \

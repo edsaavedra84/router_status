@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   routerdown:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: routerdown
     restart: unless-stopped
     environment:
@@ -21,7 +23,7 @@ services:
       - MAX_NUMBER_OF_RESETS=3
 
     volumes:
-      # Persist logs on the host
-      - ./logs:/app/logs
+      # Persist logs on the host (relative to docker-compose.yml location)
+      - ../logs:/app/logs
 
     network_mode: "host"

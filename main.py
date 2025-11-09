@@ -4,6 +4,7 @@ import socket
 import datetime
 import time
 import logging
+import sys
 
 # Configuration from environment variables with defaults
 file_path = os.path.dirname(os.path.realpath(__file__))
@@ -13,7 +14,23 @@ log_dir = os.getenv('LOG_DIR', file_path)
 if not os.path.exists(log_dir) and log_dir != file_path:
     os.makedirs(log_dir, exist_ok=True)
 
-logging.basicConfig(filename=f'{log_dir}/networkinfo.log', format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
+# 1. Create a logger instance
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)  # Set the overall logging level for the logger
+
+# 2. Create a StreamHandler for console output
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.DEBUG)  # Set level for console output
+console_formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+console_handler.setFormatter(console_formatter)
+logger.addHandler(console_handler)
+
+# 3. Create a FileHandler for file output
+file_handler = logging.FileHandler(f'{log_dir}/networkinfo.log')
+file_handler.setLevel(logging.DEBUG)  # Set level for file output
+file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
 
 # Home Assistant Configuration
 HA_HOST = os.getenv('HA_HOST', '192.168.1.116')
@@ -36,17 +53,13 @@ NUMBER_OF_ATTEMPTS_TO_LOG_ALIVE = int(os.getenv('NUMBER_OF_ATTEMPTS_TO_LOG_ALIVE
 MAX_NUMBER_OF_RESETS = int(os.getenv('MAX_NUMBER_OF_RESETS', '3'))
 
 # Log configuration on startup
-logging.warning("=== RouterDown Monitor Starting ===")
-logging.warning(f"Webhook URL: {URL_FOR_WEBHOOK}")
-logging.warning(f"Sleep while offline: {SLEEP_WHILE_OFFLINE}s")
-logging.warning(f"Sleep while online: {SLEEP_WHILE_ONLINE}s")
-logging.warning(f"Sleep after reset: {SLEEP_AFTER_RESET}s")
-logging.warning(f"Failed pings to reset: {NUMBER_OF_FAILED_PINGS_TO_RESET}")
-logging.warning(f"Max resets per outage: {MAX_NUMBER_OF_RESETS}")
-
-# creating log file in the currenty directory
-# ??getcwd?? get current directory,
-# os function, ??path?? to specify path
+logger.warning("=== RouterDown_v2 Monitor Starting ===")
+logger.warning(f"Webhook URL: {URL_FOR_WEBHOOK}")
+logger.warning(f"Sleep while offline: {SLEEP_WHILE_OFFLINE}s")
+logger.warning(f"Sleep while online: {SLEEP_WHILE_ONLINE}s")
+logger.warning(f"Sleep after reset: {SLEEP_AFTER_RESET}s")
+logger.warning(f"Failed pings to reset: {NUMBER_OF_FAILED_PINGS_TO_RESET}")
+logger.warning(f"Max resets per outage: {MAX_NUMBER_OF_RESETS}")
 
 def ping():
     # to ping a particular IP
@@ -77,15 +90,12 @@ def ping():
         # communication with the server is completed
         return True
 
-
 def calculate_time(start, stop):
-
     # calculating unavailability
     # time and converting it in seconds
     difference = stop - start
     seconds = float(str(difference.total_seconds()))
     return str(datetime.timedelta(seconds=seconds)).split(".")[0]
-
 
 def first_check():
     # to check if the system was already
@@ -94,28 +104,26 @@ def first_check():
     if ping():
         # if ping returns true
         live = "CONNECTION ACQUIRED"
-        print(live)
+        logger.info(live)
         connection_acquired_time = datetime.datetime.now()
         acquiring_message = "connection acquired at: " + \
             str(connection_acquired_time).split(".")[0]
-        print(acquiring_message)
+        logger.info(acquiring_message)
 
-        logging.warning(live)
-        logging.warning(acquiring_message)
+        logger.warning(live)
+        logger.warning(acquiring_message)
 
         return True
-
     else:
         # if ping returns false
         not_live = "CONNECTION NOT ACQUIRED"
-        print(not_live)
-        logging.warning(not_live)
+        logger.info(not_live)
+        logger.warning(not_live)
 
         return False
 
 
 def main():
-
     # main function to call functions
     monitor_start_time = datetime.datetime.now()
     monitoring_date_time = "monitoring started at: " + \
@@ -123,7 +131,7 @@ def main():
 
     if first_check():
         # if true
-        print(monitoring_date_time)
+        logger.info(monitoring_date_time)
         # monitoring will only start when
         # the connection will be acquired
 
@@ -139,16 +147,15 @@ def main():
                 
                 # if connection is acquired
                 first_check()
-                print(monitoring_date_time)
+                logger.info(monitoring_date_time)
                 break
 
-
-    logging.warning(monitoring_date_time)
-
+    logger.warning(monitoring_date_time)
     alive_check = 0
+
     while True:
         if alive_check >= NUMBER_OF_ATTEMPTS_TO_LOG_ALIVE:
-            logging.warning("I am alive and kicking! Number of attemps: %s", str(alive_check))
+            logger.warning("I am alive and kicking! Number of attemps: %s", str(alive_check))
             alive_check = 0
         # infinite loop, as we are monitoring
         # the network connection till the machine runs
@@ -162,27 +169,27 @@ def main():
             # if false: fail message will be displayed
             down_time = datetime.datetime.now()
             fail_msg = "disconnected at: " + str(down_time).split(".")[0]
-            print(fail_msg)
+            logger.info(fail_msg)
             continuos_failed_pings = 1 
             number_of_resets = 0
     
-            logging.warning(fail_msg)
+            logger.warning(fail_msg)
 
             while not ping():
-                logging.warning("continuos_failed_pings ="+str(continuos_failed_pings))
-                logging.warning("number_of_resets ="+str(number_of_resets))
+                logger.warning("continuos_failed_pings ="+str(continuos_failed_pings))
+                logger.warning("number_of_resets ="+str(number_of_resets))
 
                 if continuos_failed_pings % NUMBER_OF_FAILED_PINGS_TO_RESET == 0 and number_of_resets <= MAX_NUMBER_OF_RESETS:
                     #reset the router using a home assistant web hook :)
-                    logging.warning("ATTEMPTING RESET!")
+                    logger.warning("ATTEMPTING RESET!")
 
                     x = requests.post(URL_FOR_WEBHOOK, verify=False)
 
                     if x.status_code != 200:
-                        logging.warning("Web hook failed: %s", str(x.reason))
+                        logger.warning("Web hook failed: %s", str(x.reason))
                     else: 
                         number_of_resets += 1
-                        logging.warning("RESETTING ROUTER NOW")
+                        logger.warning("RESETTING ROUTER NOW")
 
                     time.sleep(SLEEP_AFTER_RESET)
                     continuos_failed_pings = 0
@@ -199,10 +206,10 @@ def main():
             down_time = calculate_time(down_time, up_time)
             unavailablity_time = "connection was unavailable for: " + down_time
 
-            print(uptime_message)
-            print(unavailablity_time)
+            logger.info(uptime_message)
+            logger.info(unavailablity_time)
 
-            logging.warning("%s", uptime_message)
-            logging.warning("%s", unavailablity_time)
+            logger.warning("%s", uptime_message)
+            logger.warning("%s", unavailablity_time)
 
 main()

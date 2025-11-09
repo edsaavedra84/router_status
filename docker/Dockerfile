@@ -8,7 +8,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir requests
 
 # Copy the application
-COPY ../main.py .
+COPY main.py .
 
 # Create directory for logs
 RUN mkdir -p /app/logs
