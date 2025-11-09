@@ -5,20 +5,44 @@ import datetime
 import time
 import logging
 
+# Configuration from environment variables with defaults
 file_path = os.path.dirname(os.path.realpath(__file__))
-logging.basicConfig(filename=file_path+'/networkinfo.log', format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
-# in secs
-SLEEP_WHILE_OFFLINE = 60
-SLEEP_WHILE_ONLINE = 30
-SLEEP_AFTER_RESET = 120
+# Use /app/logs in Docker, current directory otherwise
+log_dir = os.getenv('LOG_DIR', file_path)
+if not os.path.exists(log_dir) and log_dir != file_path:
+    os.makedirs(log_dir, exist_ok=True)
 
-NUMBER_OF_FAILED_PINGS_TO_RESET = 3
-NUMBER_OF_ATTEMPTS_TO_LOG_ALIVE = 20 # 10 minutes aprox if always online
+logging.basicConfig(filename=f'{log_dir}/networkinfo.log', format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
-MAX_NUMBER_OF_RESETS = 3
+# Home Assistant Configuration
+HA_HOST = os.getenv('HA_HOST', '192.168.1.116')
+HA_PORT = os.getenv('HA_PORT', '8123')
+HA_WEBHOOK_ID = os.getenv('HA_WEBHOOK_ID', '-1r22edZi_iswfPBM0u1XVnf6')
+HA_USE_HTTPS = os.getenv('HA_USE_HTTPS', 'true').lower() == 'true'
 
-URL_FOR_WEBHOOK = 'https://192.168.1.116:8123/api/webhook/-1r22edZi_iswfPBM0u1XVnf6'
+# Build webhook URL
+protocol = 'https' if HA_USE_HTTPS else 'http'
+URL_FOR_WEBHOOK = f'{protocol}://{HA_HOST}:{HA_PORT}/api/webhook/{HA_WEBHOOK_ID}'
+
+# Timing configuration (in seconds)
+SLEEP_WHILE_OFFLINE = int(os.getenv('SLEEP_WHILE_OFFLINE', '60'))
+SLEEP_WHILE_ONLINE = int(os.getenv('SLEEP_WHILE_ONLINE', '30'))
+SLEEP_AFTER_RESET = int(os.getenv('SLEEP_AFTER_RESET', '120'))
+
+NUMBER_OF_FAILED_PINGS_TO_RESET = int(os.getenv('NUMBER_OF_FAILED_PINGS_TO_RESET', '3'))
+NUMBER_OF_ATTEMPTS_TO_LOG_ALIVE = int(os.getenv('NUMBER_OF_ATTEMPTS_TO_LOG_ALIVE', '20'))  # ~10 minutes if always online
+
+MAX_NUMBER_OF_RESETS = int(os.getenv('MAX_NUMBER_OF_RESETS', '3'))
+
+# Log configuration on startup
+logging.warning("=== RouterDown Monitor Starting ===")
+logging.warning(f"Webhook URL: {URL_FOR_WEBHOOK}")
+logging.warning(f"Sleep while offline: {SLEEP_WHILE_OFFLINE}s")
+logging.warning(f"Sleep while online: {SLEEP_WHILE_ONLINE}s")
+logging.warning(f"Sleep after reset: {SLEEP_AFTER_RESET}s")
+logging.warning(f"Failed pings to reset: {NUMBER_OF_FAILED_PINGS_TO_RESET}")
+logging.warning(f"Max resets per outage: {MAX_NUMBER_OF_RESETS}")
 
 # creating log file in the currenty directory
 # ??getcwd?? get current directory,
@@ -145,8 +169,13 @@ def main():
             logging.warning(fail_msg)
 
             while not ping():
+                logging.warning("continuos_failed_pings ="+str(continuos_failed_pings))
+                logging.warning("number_of_resets ="+str(number_of_resets))
+
                 if continuos_failed_pings % NUMBER_OF_FAILED_PINGS_TO_RESET == 0 and number_of_resets <= MAX_NUMBER_OF_RESETS:
-                    #reset da shit
+                    #reset the router using a home assistant web hook :)
+                    logging.warning("ATTEMPTING RESET!")
+
                     x = requests.post(URL_FOR_WEBHOOK, verify=False)
 
                     if x.status_code != 200:

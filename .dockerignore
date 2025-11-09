@@ -1,0 +1,29 @@
+# Git files
+.git
+.gitignore
+
+# Documentation
+README.md
+CLAUDE.md
+
+# Logs (will be persisted via volume mount)
+networkinfo.log
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

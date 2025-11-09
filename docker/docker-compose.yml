@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  routerdown:
+    build: .
+    container_name: routerdown
+    restart: unless-stopped
+    environment:
+      # Home Assistant Configuration
+      - HA_HOST=192.168.1.116
+      - HA_PORT=8123
+      - HA_WEBHOOK_ID=-1r22edZi_iswfPBM0u1XVnf6
+      - HA_USE_HTTPS=true
+
+      # Monitoring Configuration (optional - uses defaults if not set)
+      - SLEEP_WHILE_OFFLINE=60
+      - SLEEP_WHILE_ONLINE=30
+      - SLEEP_AFTER_RESET=120
+      - NUMBER_OF_FAILED_PINGS_TO_RESET=3
+      - NUMBER_OF_ATTEMPTS_TO_LOG_ALIVE=20
+      - MAX_NUMBER_OF_RESETS=3
+
+    volumes:
+      # Persist logs on the host
+      - ./logs:/app/logs
+
+    network_mode: "host"
